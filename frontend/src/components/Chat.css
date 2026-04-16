@@ -1,0 +1,130 @@
+.chat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  border: 1px solid rgba(128, 128, 128, 0.3);
+  border-radius: 12px;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.6);
+}
+
+@media (prefers-color-scheme: dark) {
+  .chat {
+    background: rgba(255, 255, 255, 0.04);
+  }
+}
+
+.chat__log {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-height: 160px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.chat__empty {
+  opacity: 0.6;
+  font-style: italic;
+}
+
+.chat__msg {
+  display: flex;
+  flex-direction: column;
+  padding: 0.6rem 0.8rem;
+  border-radius: 10px;
+  max-width: 90%;
+  line-height: 1.4;
+  white-space: pre-wrap;
+}
+
+.chat__msg--user {
+  align-self: flex-end;
+  background: #d8ebff;
+  color: #0b2f55;
+}
+
+.chat__msg--assistant {
+  align-self: flex-start;
+  background: #ececf1;
+  color: #111;
+}
+
+.chat__msg--pending {
+  opacity: 0.7;
+}
+
+@media (prefers-color-scheme: dark) {
+  .chat__msg--user {
+    background: #204060;
+    color: #e6f0ff;
+  }
+  .chat__msg--assistant {
+    background: #2b2b2e;
+    color: #eee;
+  }
+}
+
+.chat__role {
+  text-transform: uppercase;
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  opacity: 0.7;
+  margin-bottom: 0.2rem;
+}
+
+.chat__error {
+  color: #b00020;
+  background: rgba(176, 0, 32, 0.08);
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+.chat__form {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.chat__form input {
+  flex: 1;
+  padding: 0.55rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid rgba(128, 128, 128, 0.4);
+  background: inherit;
+  color: inherit;
+  font: inherit;
+}
+
+.chat__form button {
+  padding: 0.55rem 1rem;
+  border-radius: 8px;
+  border: 1px solid rgba(128, 128, 128, 0.4);
+  background: #222;
+  color: white;
+  cursor: pointer;
+}
+
+.chat__form button[type="button"] {
+  background: transparent;
+  color: inherit;
+}
+
+.chat__form button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
