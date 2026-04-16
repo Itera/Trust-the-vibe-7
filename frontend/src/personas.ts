@@ -53,6 +53,7 @@ export const ALL_CARD_KINDS: CardKind[] = [
   "playlist",
   "testimonial",
   "number_trivia",
+  "meme",
 ];
 
 export const DEFAULT_CARDS: CardKind[] = [
@@ -97,6 +98,7 @@ export const CARD_LABELS_EN: Record<CardKind, string> = {
   playlist: "Playlist",
   testimonial: "Testimonial",
   recommendation: "Pair With",
+  meme: "Meme",
 };
 
 export const CARD_LABELS_NO: Record<CardKind, string> = {
@@ -112,6 +114,7 @@ export const CARD_LABELS_NO: Record<CardKind, string> = {
   playlist: "Spilleliste",
   testimonial: "Kundeutsagn",
   recommendation: "Kombiner med",
+  meme: "Meme",
 };
 
 export const cardLabel = (kind: CardKind, lang: Language): string => {
