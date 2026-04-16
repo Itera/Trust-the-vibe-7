@@ -42,7 +42,9 @@ export const PERSONA_THEMES: Record<PersonaKey, PersonaTheme> = {
 
 export const ALL_CARD_KINDS: CardKind[] = [
   "peptalk",
+  "video",
   "quote",
+  "mood_board",
   "fact",
   "kpi",
   "advice",
@@ -57,11 +59,12 @@ export const ALL_CARD_KINDS: CardKind[] = [
 
 export const DEFAULT_CARDS: CardKind[] = [
   "peptalk",
+  "video",
   "quote",
   "fact",
   "kpi",
+  "mood_board",
   "advice",
-  "image",
   "haiku",
   "recommendation",
 ];
@@ -90,13 +93,15 @@ export const CARD_LABELS_EN: Record<CardKind, string> = {
   fact: "Did You Know",
   kpi: "Projected KPI",
   advice: "Advisory",
-  image: "Visual Aid",
+  image: "Visual Aid (Cat)",
   number_trivia: "Stat Sheet",
   haiku: "Haiku",
   horoscope: "Today's Horoscope",
   playlist: "Playlist",
   testimonial: "Testimonial",
   recommendation: "Pair With",
+  video: "Motion Brief",
+  mood_board: "Mood Board",
 };
 
 export const CARD_LABELS_NO: Record<CardKind, string> = {
@@ -105,13 +110,15 @@ export const CARD_LABELS_NO: Record<CardKind, string> = {
   fact: "Visste du at",
   kpi: "Prognose-KPI",
   advice: "Anbefaling",
-  image: "Visuelt bidrag",
+  image: "Visuelt bidrag (katt)",
   number_trivia: "Tallspalten",
   haiku: "Haiku",
   horoscope: "Dagens horoskop",
   playlist: "Spilleliste",
   testimonial: "Kundeutsagn",
   recommendation: "Kombiner med",
+  video: "Videonotat",
+  mood_board: "Stemningstavle",
 };
 
 export const cardLabel = (kind: CardKind, lang: Language): string => {

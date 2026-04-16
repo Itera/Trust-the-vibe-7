@@ -23,15 +23,18 @@ CardKind = Literal[
     "playlist",
     "testimonial",
     "recommendation",
+    "video",
+    "mood_board",
 ]
 
 DEFAULT_CARDS: list[CardKind] = [
     "peptalk",
+    "video",
     "quote",
     "fact",
     "kpi",
+    "mood_board",
     "advice",
-    "image",
     "haiku",
     "recommendation",
 ]
@@ -51,6 +54,9 @@ class Card(BaseModel):
     body: str
     attribution: str | None = None  # e.g. "— Seneca"
     image_url: str | None = None  # for `image` cards
+    image_urls: list[str] | None = None  # for `mood_board` cards (expected 4)
+    video_url: str | None = None  # for `video` cards (direct MP4)
+    video_poster: str | None = None  # poster/thumbnail for the video
     source: str | None = None  # which API or persona produced it
 
 

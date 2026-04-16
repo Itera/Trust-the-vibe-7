@@ -411,13 +411,67 @@
   grid-row: span 2;
 }
 
+.card--video {
+  grid-column: span 2;
+}
+
+.card--mood {
+  grid-column: span 2;
+  grid-row: span 2;
+}
+
+.card__video {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.card__video video {
+  width: 100%;
+  height: auto;
+  max-height: 360px;
+  border-radius: 4px;
+  background: #000;
+  display: block;
+}
+
+.card__mood-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  aspect-ratio: 1 / 1;
+}
+
+.card__mood-grid img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 2px;
+  display: block;
+}
+
+.card__body--caption {
+  font-size: 0.9rem;
+  color: #555;
+  font-style: italic;
+  margin-top: 0.3rem;
+}
+
+.card--hero .card__body--caption,
+.card--video.card--hero .card__body--caption {
+  color: rgba(255, 255, 255, 0.85);
+}
+
 @media (max-width: 640px) {
   .card--hero,
-  .card--wide {
+  .card--wide,
+  .card--video,
+  .card--mood {
     grid-column: span 1;
   }
   .card--tall,
-  .card--hero {
+  .card--hero,
+  .card--mood {
     grid-row: auto;
   }
 }

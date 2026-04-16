@@ -13,7 +13,9 @@ export type CardKind =
   | "horoscope"
   | "playlist"
   | "testimonial"
-  | "recommendation";
+  | "recommendation"
+  | "video"
+  | "mood_board";
 
 export interface Card {
   kind: CardKind;
@@ -21,6 +23,9 @@ export interface Card {
   body: string;
   attribution?: string | null;
   image_url?: string | null;
+  image_urls?: string[] | null;
+  video_url?: string | null;
+  video_poster?: string | null;
   source?: string | null;
 }
 

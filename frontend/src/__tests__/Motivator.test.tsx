@@ -136,7 +136,7 @@ describe("<Motivator />", () => {
     await user.click(screen.getByRole("button", { name: /^NO$/ }));
 
     await waitFor(() => {
-      const raw = localStorage.getItem("humotivatoren.settings.v1");
+      const raw = localStorage.getItem("humotivatoren.settings.v2");
       expect(raw).not.toBeNull();
       const parsed = JSON.parse(raw!);
       expect(parsed.persona).toBe("stoic");

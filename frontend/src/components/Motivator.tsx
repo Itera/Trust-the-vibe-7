@@ -13,7 +13,11 @@ import SettingsBar from "./SettingsBar";
 import LoadingState from "./LoadingState";
 import MotivationCard from "./MotivationCard";
 
-const STORAGE_KEY = "humotivatoren.settings.v1";
+// Bump this suffix whenever DEFAULT_CARDS changes so existing localStorage
+// entries get replaced with the new default set (otherwise a user's saved
+// v1 payload — which predates `video` and `mood_board` — silently disables
+// the new card kinds).
+const STORAGE_KEY = "humotivatoren.settings.v2";
 
 interface PersistedSettings {
   persona: PersonaKey;

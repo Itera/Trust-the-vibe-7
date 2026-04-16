@@ -11,6 +11,7 @@ from app.apis import advice as advice_mod
 from app.apis import facts as facts_mod
 from app.apis import images as images_mod
 from app.apis import numbers as numbers_mod
+from app.apis import pixabay as pixabay_mod
 from app.apis import quotes as quotes_mod
 from app.orchestrator import motivate
 from app.schemas import MotivationRequest
@@ -70,7 +71,11 @@ async def test_motivate_happy_path(settings):
     )
 
     req = MotivationRequest(
-        task="read the news", persona="consultant", language="en", seriousness=30
+        task="read the news",
+        persona="consultant",
+        language="en",
+        seriousness=30,
+        cards=["peptalk", "quote", "fact", "kpi", "advice", "image", "haiku", "recommendation"],
     )
     pkg = await motivate(settings, req)
 
@@ -164,6 +169,140 @@ async def test_motivate_tolerates_source_failure(settings):
     req = MotivationRequest(task="x")
     pkg = await motivate(settings, req)
     assert pkg.cards[0].kind == "peptalk"
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_motivate_video_and_mood_board_cards(settings, monkeypatch):
+    # Turn on pixabay key for this test; conftest has it unset by default.
+    monkeypatch.setattr(settings, "pixabay_api_key", "fake-pixabay-key")
+
+    respx.get(pixabay_mod.VIDEOS_URL).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "hits": [
+                    {
+                        "tags": "motivation",
+                        "pageURL": "https://pixabay.com/videos/x/",
+                        "user": "A",
+                        "videos": {
+                            "medium": {
+                                "url": "https://cdn.pixabay.com/v/motivation.mp4",
+                                "thumbnail": "https://cdn.pixabay.com/v/thumb.jpg",
+                            }
+                        },
+                    }
+                ]
+            },
+        )
+    )
+    respx.get(pixabay_mod.IMAGES_URL).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "hits": [
+                    {"webformatURL": "https://cdn.pixabay.com/p/a.jpg", "tags": "a"},
+                    {"webformatURL": "https://cdn.pixabay.com/p/b.jpg", "tags": "b"},
+                    {"webformatURL": "https://cdn.pixabay.com/p/c.jpg", "tags": "c"},
+                    {"webformatURL": "https://cdn.pixabay.com/p/d.jpg", "tags": "d"},
+                ]
+            },
+        )
+    )
+    # LLM returns captions but NO media URLs — orchestrator must inject them.
+    respx.post(settings.chat_completions_url).mock(
+        return_value=httpx.Response(
+            200,
+            json=_azure_reply(
+                {
+                    "report_title": "DOSE",
+                    "report_subtitle": "sub",
+                    "cards": [
+                        {"kind": "peptalk", "title": "p", "body": "b"},
+                        {"kind": "video", "title": "Watch this", "body": "caption"},
+                        {"kind": "mood_board", "title": "Mood", "body": "vibes"},
+                    ],
+                }
+            ),
+        )
+    )
+
+    req = MotivationRequest(
+        task="run a marathon", cards=["peptalk", "video", "mood_board"]
+    )
+    pkg = await motivate(settings, req)
+
+    video = next(c for c in pkg.cards if c.kind == "video")
+    assert video.video_url == "https://cdn.pixabay.com/v/motivation.mp4"
+    assert video.video_poster == "https://cdn.pixabay.com/v/thumb.jpg"
+
+    mood = next(c for c in pkg.cards if c.kind == "mood_board")
+    assert mood.image_urls == [
+        "https://cdn.pixabay.com/p/a.jpg",
+        "https://cdn.pixabay.com/p/b.jpg",
+        "https://cdn.pixabay.com/p/c.jpg",
+        "https://cdn.pixabay.com/p/d.jpg",
+    ]
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_motivate_drops_video_card_when_pixabay_returns_nothing(
+    settings, monkeypatch
+):
+    monkeypatch.setattr(settings, "pixabay_api_key", "fake-pixabay-key")
+
+    respx.get(pixabay_mod.VIDEOS_URL).mock(
+        return_value=httpx.Response(200, json={"hits": []})
+    )
+    respx.post(settings.chat_completions_url).mock(
+        return_value=httpx.Response(
+            200,
+            json=_azure_reply(
+                {
+                    "report_title": "t",
+                    "report_subtitle": "s",
+                    "cards": [
+                        {"kind": "peptalk", "title": "p", "body": "b"},
+                        {"kind": "video", "title": "w", "body": "c"},
+                    ],
+                }
+            ),
+        )
+    )
+
+    req = MotivationRequest(task="x", cards=["peptalk", "video"])
+    pkg = await motivate(settings, req)
+    kinds = [c.kind for c in pkg.cards]
+    assert "video" not in kinds  # dropped because no URL
+    assert "peptalk" in kinds
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_motivate_skips_pixabay_fetch_without_key(settings):
+    # settings.pixabay_api_key is None by default (conftest).
+    # LLM may still emit a video/mood_board card but it should be dropped.
+    respx.post(settings.chat_completions_url).mock(
+        return_value=httpx.Response(
+            200,
+            json=_azure_reply(
+                {
+                    "report_title": "t",
+                    "report_subtitle": "s",
+                    "cards": [
+                        {"kind": "peptalk", "title": "p", "body": "b"},
+                        {"kind": "video", "title": "w", "body": "c"},
+                    ],
+                }
+            ),
+        )
+    )
+
+    req = MotivationRequest(task="x", cards=["peptalk", "video"])
+    pkg = await motivate(settings, req)
+    assert [c.kind for c in pkg.cards] == ["peptalk"]
 
 
 @respx.mock

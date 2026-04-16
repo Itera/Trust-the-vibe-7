@@ -12,6 +12,8 @@ from .apis import (
     fetch_advice,
     fetch_cat_image,
     fetch_number_trivia,
+    fetch_pixabay_images,
+    fetch_pixabay_video,
     fetch_quote,
     fetch_useless_fact,
 )
@@ -34,7 +36,9 @@ async def _safe(coro) -> Any:
 
 
 async def gather_raw_materials(
-    client: httpx.AsyncClient, req: MotivationRequest
+    client: httpx.AsyncClient,
+    settings: Settings,
+    req: MotivationRequest,
 ) -> dict[str, Any]:
     """Concurrently fetch everything we might want; the LLM uses what's useful."""
     wants_image = "image" in req.cards
@@ -42,15 +46,31 @@ async def gather_raw_materials(
     wants_fact = "fact" in req.cards
     wants_advice = "advice" in req.cards or "recommendation" in req.cards
     wants_quote = "quote" in req.cards
+    wants_video = "video" in req.cards
+    wants_mood = "mood_board" in req.cards
 
-    tasks = {
+    pixabay_key = settings.pixabay_api_key
+    # A simple keyword-ish query derived from the user's task.
+    pix_query = req.task[:80]
+
+    tasks: dict[str, Any] = {
         "quote": _safe(fetch_quote(client)) if wants_quote else None,
         "fact": _safe(fetch_useless_fact(client, language=req.language)) if wants_fact else None,
         "advice": _safe(fetch_advice(client)) if wants_advice else None,
         "number_trivia": _safe(fetch_number_trivia(client)) if wants_numbers else None,
         "image": _safe(fetch_cat_image(client)) if wants_image else None,
     }
-    # Keep only the ones we actually requested.
+    if pixabay_key and wants_video:
+        tasks["video"] = _safe(
+            fetch_pixabay_video(client, pixabay_key, pix_query, language=req.language)
+        )
+    if pixabay_key and wants_mood:
+        tasks["mood_board"] = _safe(
+            fetch_pixabay_images(
+                client, pixabay_key, pix_query, count=4, language=req.language
+            )
+        )
+
     active = {k: v for k, v in tasks.items() if v is not None}
     results = await asyncio.gather(*active.values())
     return dict(zip(active.keys(), results))
@@ -78,40 +98,6 @@ def _seriousness_guidance(level: int) -> str:
     return "Tone: maximum unhinged energy while staying kind and on-brand."
 
 
-def _card_menu(kinds: list[str], language: str) -> str:
-    descriptions_en = {
-        "peptalk": "A 2-3 sentence hero pep talk tying everything to the user's task.",
-        "quote": "A real or persona-paraphrased quote with attribution.",
-        "fact": "A useless-but-charming fact, tied to the task if possible.",
-        "kpi": "A fake-but-plausible consulting KPI with a trend (e.g. '+47% vibe index').",
-        "advice": "One short imperative sentence of life advice.",
-        "image": "A visual-aid card — use the cat image URL from raw materials.",
-        "number_trivia": "A dubious stat about a specific number tied to the task.",
-        "haiku": "A 5-7-5 haiku about the task.",
-        "horoscope": "A 2 sentence pseudo-horoscope for today, for this task.",
-        "playlist": "A 3-song fake playlist for doing this task (titles + artists, made up).",
-        "testimonial": "A fake customer testimonial from 'Nils, 34' style, endorsing the task.",
-        "recommendation": "A 'pair with…' recommendation (e.g. 'Pair with a 12-min timer and oat milk.').",
-    }
-    descriptions_no = {
-        "peptalk": "En 2-3 setningers heltemodig peptalk som binder alt til oppgaven.",
-        "quote": "Et ekte eller persona-parafrasert sitat med kilde.",
-        "fact": "Et unyttig men sjarmerende faktum, helst koblet til oppgaven.",
-        "kpi": "En troverdig-oppdiktet konsulent-KPI med trend (f.eks. '+47 % vibbe-indeks').",
-        "advice": "Én kort imperativ livsråd-setning.",
-        "image": "Et visuelt kort — bruk katte-URLen fra raw materials.",
-        "number_trivia": "En tvilsom statistikk om et tall knyttet til oppgaven.",
-        "haiku": "Et 5-7-5 haiku om oppgaven.",
-        "horoscope": "Et 2-setningers pseudo-horoskop for i dag, for denne oppgaven.",
-        "playlist": "En oppdiktet 3-låts spilleliste for denne oppgaven (titler + artister).",
-        "testimonial": "Et oppdiktet kundeutsagn i stil 'Nils, 34', som roser oppgaven.",
-        "recommendation": "En 'kombiner med…'-anbefaling (f.eks. 'Kombiner med en 12-min timer og havremelk.').",
-    }
-    descs = descriptions_no if language == "no" else descriptions_en
-    lines = [f"- {k}: {descs.get(k, 'Free form.')}" for k in kinds]
-    return "\n".join(lines)
-
-
 def build_messages(
     req: MotivationRequest,
     persona: Persona,
@@ -130,7 +116,7 @@ def build_messages(
         '  "report_subtitle": "string, 1 short editorial line in persona voice",\n'
         '  "cards": [\n'
         '    {\n'
-        '      "kind": "one of: " + the requested kinds,\n'
+        '      "kind": "one of the requested kinds",\n'
         '      "title": "short section title",\n'
         '      "body": "the card content, in persona voice",\n'
         '      "attribution": "optional — e.g. \'— Seneca\' for quotes, or null",\n'
@@ -151,10 +137,16 @@ def build_messages(
         f"{VALUES_GUARDRAIL}\n\n"
         "OUTPUT: a single JSON object matching this shape (no prose, no markdown):\n"
         f"{schema_block}\n\n"
-        "Produce exactly one card per requested kind, in the requested order. "
+        "Produce at most one card per requested kind, in the requested order. "
         "Use the raw materials wherever natural — rewrite them in persona voice "
-        "if it improves the piece. For the 'image' card, you MUST set image_url "
-        "to the URL from raw_materials.image.url (or omit the card if missing)."
+        "if it improves the piece.\n"
+        "- For 'image' cards, you MUST set image_url to raw_materials.image.url.\n"
+        "- For 'video' cards, the MP4 is injected from raw_materials.video; just "
+        "write a persona-voiced title + body captioning what's coming. Skip the "
+        "video card if raw_materials.video is missing.\n"
+        "- For 'mood_board' cards, four image URLs are injected from "
+        "raw_materials.mood_board; write a persona-voiced title + body that "
+        "frames the collage. Skip if raw_materials.mood_board is empty."
     )
 
     user = (
@@ -181,13 +173,13 @@ async def motivate(
     persona = get_persona(req.persona)
 
     async def _do(c: httpx.AsyncClient) -> MotivationPackage:
-        raw = await gather_raw_materials(c, req)
+        raw = await gather_raw_materials(c, settings, req)
         messages = build_messages(req, persona, raw)
         data = await chat_completion(
             settings,
             messages,
             temperature=0.9,
-            max_tokens=1400,
+            max_tokens=1600,
             response_format={"type": "json_object"},
             client=c,
         )
@@ -220,10 +212,10 @@ async def motivate(
                 )
             )
 
-        # Ensure image cards have a URL — fall back to raw material if the model forgot.
-        for card in cards:
-            if card.kind == "image" and not card.image_url and raw.get("image"):
-                card.image_url = raw["image"].get("url")
+        # Inject media URLs from raw materials (LLM only produces captions).
+        cards = _inject_media_urls(cards, raw)
+        # Drop cards whose required media is missing.
+        cards = [c for c in cards if not _card_is_broken(c)]
 
         return MotivationPackage(
             task=req.task,
@@ -239,3 +231,30 @@ async def motivate(
         async with httpx.AsyncClient(timeout=60.0) as c:
             return await _do(c)
     return await _do(client)
+
+
+def _inject_media_urls(cards: list[Card], raw: dict[str, Any]) -> list[Card]:
+    """Overwrite LLM-reported URLs with the real ones from raw_materials."""
+    for card in cards:
+        if card.kind == "image":
+            if not card.image_url and raw.get("image"):
+                card.image_url = (raw["image"] or {}).get("url")
+        elif card.kind == "video" and raw.get("video"):
+            video = raw["video"] or {}
+            card.video_url = video.get("url")
+            card.video_poster = video.get("poster")
+            card.source = card.source or "pixabay.com"
+        elif card.kind == "mood_board" and raw.get("mood_board"):
+            urls = [item.get("url") for item in (raw["mood_board"] or []) if item.get("url")]
+            card.image_urls = urls[:4] or None
+            card.source = card.source or "pixabay.com"
+    return cards
+
+
+def _card_is_broken(card: Card) -> bool:
+    """True if a media-bearing card ended up without the URL it needs."""
+    if card.kind == "video":
+        return not card.video_url
+    if card.kind == "mood_board":
+        return not card.image_urls
+    return False

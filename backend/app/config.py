@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     )
     azure_openai_api_key: str = Field(..., alias="AZURE_OPENAI_API_KEY")
 
+    # Optional: enables the 'video' + 'mood_board' card kinds via Pixabay.
+    pixabay_api_key: str | None = Field(default=None, alias="PIXABAY_API_KEY")
+
     allowed_origins: str = Field(
         "http://localhost:5173,http://127.0.0.1:5173", alias="ALLOWED_ORIGINS"
     )
