@@ -40,6 +40,20 @@ export async function motivate(
   return (await res.json()) as MotivationPackage;
 }
 
+export async function fetchFrogMessage(
+  clickCount: number,
+  task?: string,
+  options: { baseUrl?: string } = {},
+): Promise<{ message: string; annoyed: boolean }> {
+  const params = new URLSearchParams({ click_count: String(clickCount) });
+  if (task) params.set("task", task);
+  const url = `${options.baseUrl ?? ""}/api/frog?${params}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new ApiError(res.status, await parseErrorDetail(res));
+  const data = (await res.json()) as { message: string; annoyed: string };
+  return { message: data.message, annoyed: data.annoyed === "true" };
+}
+
 export async function fetchPersonas(
   language: Language,
   options: { baseUrl?: string } = {},
