@@ -1,6 +1,8 @@
 import { useState } from "react";
 import type { CardKind, Language, PersonaKey, PersonaSummary } from "../types";
 import { ALL_CARD_KINDS, cardLabel } from "../personas";
+import { THEMES } from "../themes";
+import type { Theme } from "../themes";
 
 interface Props {
   personas: PersonaSummary[];
@@ -8,6 +10,7 @@ interface Props {
   language: Language;
   seriousness: number;
   cards: CardKind[];
+  themeId: string;
   onChange: (
     patch: Partial<{
       persona: PersonaKey;
@@ -16,6 +19,7 @@ interface Props {
       cards: CardKind[];
     }>,
   ) => void;
+  onThemeChange: (themeId: string) => void;
   disabled?: boolean;
 }
 
@@ -25,7 +29,9 @@ export default function SettingsBar({
   language,
   seriousness,
   cards,
+  themeId,
   onChange,
+  onThemeChange,
   disabled,
 }: Props) {
   const [open, setOpen] = useState(false);
@@ -39,6 +45,7 @@ export default function SettingsBar({
     lessSettings: language === "no" ? "Skjul innstillinger" : "Hide settings",
     fullyPro: language === "no" ? "Dyp alvor" : "Dead serious",
     fullyWild: language === "no" ? "Fullt kaos" : "Fully unhinged",
+    theme: language === "no" ? "Tema" : "Theme",
   };
 
   function toggleCard(k: CardKind) {
@@ -89,6 +96,21 @@ export default function SettingsBar({
           >
             NO
           </button>
+        </div>
+
+        <div className="theme-picker" role="group" aria-label={L.theme}>
+          {THEMES.map((t: Theme) => (
+            <button
+              key={t.id}
+              type="button"
+              title={t.label}
+              className={`theme-pill ${themeId === t.id ? "theme-pill--active" : ""}`}
+              onClick={() => onThemeChange(t.id)}
+              disabled={disabled}
+            >
+              {t.emoji} {t.label}
+            </button>
+          ))}
         </div>
 
         <button
