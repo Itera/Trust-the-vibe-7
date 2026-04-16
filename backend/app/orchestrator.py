@@ -1,0 +1,241 @@
+"""HuMotivatoren orchestrator: gather raw materials, compose persona-voiced cards."""
+from __future__ import annotations
+
+import asyncio
+import json
+import logging
+from typing import Any
+
+import httpx
+
+from .apis import (
+    fetch_advice,
+    fetch_cat_image,
+    fetch_number_trivia,
+    fetch_quote,
+    fetch_useless_fact,
+)
+from .config import Settings
+from .llm import chat_completion
+from .personas import Persona, get_persona
+from .schemas import Card, MotivationPackage, MotivationRequest
+
+logger = logging.getLogger("humotivatoren")
+
+
+# ---------- raw material gathering ------------------------------------------
+
+async def _safe(coro) -> Any:
+    try:
+        return await coro
+    except Exception as exc:  # any network / parse failure — just skip that source
+        logger.info("raw material fetch failed: %s", exc)
+        return None
+
+
+async def gather_raw_materials(
+    client: httpx.AsyncClient, req: MotivationRequest
+) -> dict[str, Any]:
+    """Concurrently fetch everything we might want; the LLM uses what's useful."""
+    wants_image = "image" in req.cards
+    wants_numbers = "number_trivia" in req.cards or "kpi" in req.cards
+    wants_fact = "fact" in req.cards
+    wants_advice = "advice" in req.cards or "recommendation" in req.cards
+    wants_quote = "quote" in req.cards
+
+    tasks = {
+        "quote": _safe(fetch_quote(client)) if wants_quote else None,
+        "fact": _safe(fetch_useless_fact(client, language=req.language)) if wants_fact else None,
+        "advice": _safe(fetch_advice(client)) if wants_advice else None,
+        "number_trivia": _safe(fetch_number_trivia(client)) if wants_numbers else None,
+        "image": _safe(fetch_cat_image(client)) if wants_image else None,
+    }
+    # Keep only the ones we actually requested.
+    active = {k: v for k, v in tasks.items() if v is not None}
+    results = await asyncio.gather(*active.values())
+    return dict(zip(active.keys(), results))
+
+
+# ---------- prompt construction ---------------------------------------------
+
+VALUES_GUARDRAIL = (
+    "Absolute rules: keep it warm, cheeky, absurd-but-kind. Never mean-spirited. "
+    "No politics, religion, nationalism, body-shaming, or stereotyping. "
+    "Stay workplace-safe. Humor punches sideways, never down. "
+    "If a source is unusable, quietly skip it."
+)
+
+
+def _seriousness_guidance(level: int) -> str:
+    if level < 20:
+        return "Tone: fully deadpan professional, like a real consulting deliverable."
+    if level < 45:
+        return "Tone: mostly professional with a subtle absurd undercurrent."
+    if level < 70:
+        return "Tone: balanced — professional structure, openly playful content."
+    if level < 90:
+        return "Tone: leaning unhinged; corporate shell with chaotic filling."
+    return "Tone: maximum unhinged energy while staying kind and on-brand."
+
+
+def _card_menu(kinds: list[str], language: str) -> str:
+    descriptions_en = {
+        "peptalk": "A 2-3 sentence hero pep talk tying everything to the user's task.",
+        "quote": "A real or persona-paraphrased quote with attribution.",
+        "fact": "A useless-but-charming fact, tied to the task if possible.",
+        "kpi": "A fake-but-plausible consulting KPI with a trend (e.g. '+47% vibe index').",
+        "advice": "One short imperative sentence of life advice.",
+        "image": "A visual-aid card — use the cat image URL from raw materials.",
+        "number_trivia": "A dubious stat about a specific number tied to the task.",
+        "haiku": "A 5-7-5 haiku about the task.",
+        "horoscope": "A 2 sentence pseudo-horoscope for today, for this task.",
+        "playlist": "A 3-song fake playlist for doing this task (titles + artists, made up).",
+        "testimonial": "A fake customer testimonial from 'Nils, 34' style, endorsing the task.",
+        "recommendation": "A 'pair with…' recommendation (e.g. 'Pair with a 12-min timer and oat milk.').",
+    }
+    descriptions_no = {
+        "peptalk": "En 2-3 setningers heltemodig peptalk som binder alt til oppgaven.",
+        "quote": "Et ekte eller persona-parafrasert sitat med kilde.",
+        "fact": "Et unyttig men sjarmerende faktum, helst koblet til oppgaven.",
+        "kpi": "En troverdig-oppdiktet konsulent-KPI med trend (f.eks. '+47 % vibbe-indeks').",
+        "advice": "Én kort imperativ livsråd-setning.",
+        "image": "Et visuelt kort — bruk katte-URLen fra raw materials.",
+        "number_trivia": "En tvilsom statistikk om et tall knyttet til oppgaven.",
+        "haiku": "Et 5-7-5 haiku om oppgaven.",
+        "horoscope": "Et 2-setningers pseudo-horoskop for i dag, for denne oppgaven.",
+        "playlist": "En oppdiktet 3-låts spilleliste for denne oppgaven (titler + artister).",
+        "testimonial": "Et oppdiktet kundeutsagn i stil 'Nils, 34', som roser oppgaven.",
+        "recommendation": "En 'kombiner med…'-anbefaling (f.eks. 'Kombiner med en 12-min timer og havremelk.').",
+    }
+    descs = descriptions_no if language == "no" else descriptions_en
+    lines = [f"- {k}: {descs.get(k, 'Free form.')}" for k in kinds]
+    return "\n".join(lines)
+
+
+def build_messages(
+    req: MotivationRequest,
+    persona: Persona,
+    raw_materials: dict[str, Any],
+) -> list[dict[str, str]]:
+    voice = persona.voice(req.language)
+    seriousness = _seriousness_guidance(req.seriousness)
+
+    language_name = "Norwegian (bokmål)" if req.language == "no" else "English"
+
+    raw_blob = json.dumps(raw_materials, ensure_ascii=False, indent=2)
+
+    schema_block = (
+        '{\n'
+        '  "report_title": "string, mock-serious report headline in persona voice",\n'
+        '  "report_subtitle": "string, 1 short editorial line in persona voice",\n'
+        '  "cards": [\n'
+        '    {\n'
+        '      "kind": "one of: " + the requested kinds,\n'
+        '      "title": "short section title",\n'
+        '      "body": "the card content, in persona voice",\n'
+        '      "attribution": "optional — e.g. \'— Seneca\' for quotes, or null",\n'
+        '      "image_url": "REQUIRED when kind == image, otherwise null",\n'
+        '      "source": "optional — e.g. \'quotable.io\' or \'HuMotivatoren\'"\n'
+        '    }\n'
+        '  ]\n'
+        '}'
+    )
+
+    system = (
+        "You are the HuMotivatoren orchestrator, composing a satirical-but-warm "
+        "motivation deck for a colleague at Itera.\n\n"
+        f"PERSONA: {persona.name}\n"
+        f"VOICE INSTRUCTIONS: {voice}\n"
+        f"RESPONSE LANGUAGE: {language_name}. Write ALL user-facing text in this language.\n"
+        f"{seriousness}\n\n"
+        f"{VALUES_GUARDRAIL}\n\n"
+        "OUTPUT: a single JSON object matching this shape (no prose, no markdown):\n"
+        f"{schema_block}\n\n"
+        "Produce exactly one card per requested kind, in the requested order. "
+        "Use the raw materials wherever natural — rewrite them in persona voice "
+        "if it improves the piece. For the 'image' card, you MUST set image_url "
+        "to the URL from raw_materials.image.url (or omit the card if missing)."
+    )
+
+    user = (
+        f"User's task: {req.task!r}\n\n"
+        f"Requested card kinds (in order): {req.cards}\n\n"
+        f"Raw materials fetched from the internet:\n{raw_blob}\n\n"
+        "Now produce the JSON."
+    )
+
+    return [
+        {"role": "system", "content": system},
+        {"role": "user", "content": user},
+    ]
+
+
+# ---------- main entrypoint --------------------------------------------------
+
+async def motivate(
+    settings: Settings,
+    req: MotivationRequest,
+    *,
+    client: httpx.AsyncClient | None = None,
+) -> MotivationPackage:
+    persona = get_persona(req.persona)
+
+    async def _do(c: httpx.AsyncClient) -> MotivationPackage:
+        raw = await gather_raw_materials(c, req)
+        messages = build_messages(req, persona, raw)
+        data = await chat_completion(
+            settings,
+            messages,
+            temperature=0.9,
+            max_tokens=1400,
+            response_format={"type": "json_object"},
+            client=c,
+        )
+        content = (
+            (data.get("choices") or [{}])[0].get("message", {}).get("content", "{}")
+        )
+        try:
+            parsed = json.loads(content)
+        except json.JSONDecodeError as exc:
+            logger.warning("LLM returned invalid JSON: %s", exc)
+            parsed = {"cards": []}
+
+        cards_raw: list[dict[str, Any]] = parsed.get("cards") or []
+        cards: list[Card] = []
+        allowed = set(req.cards)
+        for c_raw in cards_raw:
+            kind = c_raw.get("kind")
+            if kind not in allowed:
+                continue
+            title = (c_raw.get("title") or "").strip() or kind.title()
+            body = (c_raw.get("body") or "").strip()
+            cards.append(
+                Card(
+                    kind=kind,  # type: ignore[arg-type]
+                    title=title,
+                    body=body,
+                    attribution=(c_raw.get("attribution") or None),
+                    image_url=(c_raw.get("image_url") or None),
+                    source=(c_raw.get("source") or None),
+                )
+            )
+
+        # Ensure image cards have a URL — fall back to raw material if the model forgot.
+        for card in cards:
+            if card.kind == "image" and not card.image_url and raw.get("image"):
+                card.image_url = raw["image"].get("url")
+
+        return MotivationPackage(
+            task=req.task,
+            persona=req.persona,
+            language=req.language,
+            report_title=str(parsed.get("report_title", "MOTIVATION DOSE")).strip(),
+            report_subtitle=str(parsed.get("report_subtitle", "")).strip(),
+            cards=cards,
+        )
+
+    if client is None:
+        # LLM calls can take 10-30s; open APIs are bounded individually.
+        async with httpx.AsyncClient(timeout=60.0) as c:
+            return await _do(c)
+    return await _do(client)
