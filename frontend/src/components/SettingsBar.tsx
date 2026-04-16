@@ -1,6 +1,9 @@
 import { useState } from "react";
 import type { CardKind, Language, PersonaKey, PersonaSummary } from "../types";
 import { ALL_CARD_KINDS, cardLabel } from "../personas";
+import { playPersonaSound } from "../personaSounds";
+import { THEMES } from "../themes";
+import type { Theme } from "../themes";
 
 interface Props {
   personas: PersonaSummary[];
@@ -42,7 +45,8 @@ export default function SettingsBar({ personas, persona, language, seriousness, 
             return (
               <button
                 key={p.key} type="button" role="radio" aria-checked={isActive}
-                disabled={disabled} onClick={() => onChange({ persona: p.key })}
+                disabled={disabled}
+                onClick={() => { playPersonaSound(p.key); onChange({ persona: p.key }); }}
                 className={["font-label text-sm px-4 py-2 border-2 font-bold transition-all disabled:opacity-50", darkMode ? "uppercase tracking-widest text-xs font-black" : "rounded-full"].join(" ")}
                 style={isActive ? { background: p.accent_color, color: "white", borderColor: p.accent_color } : { color: p.accent_color, borderColor: p.accent_color, background: "transparent" }}
               >{p.name}</button>
