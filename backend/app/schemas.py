@@ -54,6 +54,12 @@ class Card(BaseModel):
     source: str | None = None  # which API or persona produced it
 
 
+class UiTheme(BaseModel):
+    background: str | None = None
+    accent: str | None = None
+    fontScale: float | None = None
+
+
 class MotivationPackage(BaseModel):
     task: str
     persona: PersonaKey
@@ -61,6 +67,7 @@ class MotivationPackage(BaseModel):
     report_title: str  # "MOTIVATION DOSE • Q2-2026 REPORT"
     report_subtitle: str  # short editorial line in persona voice
     cards: list[Card]
+    ui: UiTheme | None = None
 
 
 class PersonaSummary(BaseModel):

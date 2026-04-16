@@ -24,6 +24,12 @@ export interface Card {
   source?: string | null;
 }
 
+export interface UiTheme {
+  background?: string;
+  accent?: string;
+  fontScale?: number;
+}
+
 export interface MotivationPackage {
   task: string;
   persona: PersonaKey;
@@ -31,6 +37,7 @@ export interface MotivationPackage {
   report_title: string;
   report_subtitle: string;
   cards: Card[];
+  ui?: UiTheme | null;
 }
 
 export interface MotivationRequest {
