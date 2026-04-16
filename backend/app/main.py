@@ -1,6 +1,7 @@
 """FastAPI entrypoint exposing a chat proxy for Azure OpenAI."""
 from __future__ import annotations
 
+import json
 import logging
 from pathlib import Path
 
@@ -11,9 +12,21 @@ from fastapi.staticfiles import StaticFiles
 
 from .config import Settings, get_settings
 from .llm import AzureOpenAIError, chat_completion
-from .schemas import ChatRequest, ChatResponse
+from .schemas import ChatMessage, ChatRequest, ChatResponse, UiTheme
 
 logger = logging.getLogger("chat")
+
+UI_SYSTEM_ADDENDUM = """
+Always respond with valid JSON and nothing else, using this exact format:
+{
+  "reply": "<your response text>",
+  "ui": {
+    "background": "<hex color for page background that fits the mood/topic>",
+    "accent": "<hex color for UI accents and user message bubbles>",
+    "fontScale": <number between 0.9 and 1.2>
+  }
+}
+"""
 
 # The built frontend lives in ../frontend/dist relative to the backend/ package.
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -41,10 +54,22 @@ def create_app(frontend_dist: Path | None = FRONTEND_DIST) -> FastAPI:
         req: ChatRequest,
         settings: Settings = Depends(get_settings),
     ) -> ChatResponse:
+        # Inject UI JSON instructions into the system message
+        messages = list(req.messages)
+        for i, msg in enumerate(messages):
+            if msg.role == "system":
+                messages[i] = ChatMessage(
+                    role="system",
+                    content=msg.content + "\n\n" + UI_SYSTEM_ADDENDUM,
+                )
+                break
+        else:
+            messages.insert(0, ChatMessage(role="system", content=UI_SYSTEM_ADDENDUM))
+
         try:
             data = await chat_completion(
                 settings,
-                req.messages,
+                messages,
                 temperature=req.temperature,
                 max_tokens=req.max_tokens,
             )
@@ -55,12 +80,22 @@ def create_app(frontend_dist: Path | None = FRONTEND_DIST) -> FastAPI:
         choices = data.get("choices") or []
         if not choices:
             raise HTTPException(status_code=502, detail="empty response from model")
-        reply = (choices[0].get("message") or {}).get("content", "")
+        raw = (choices[0].get("message") or {}).get("content", "")
+
+        ui: UiTheme | None = None
+        try:
+            parsed = json.loads(raw)
+            reply = parsed.get("reply", raw)
+            if isinstance(parsed.get("ui"), dict):
+                ui = UiTheme(**parsed["ui"])
+        except (json.JSONDecodeError, ValueError, TypeError):
+            reply = raw
 
         return ChatResponse(
             reply=reply,
             model=data.get("model", settings.azure_openai_deployment),
             usage=data.get("usage"),
+            ui=ui,
         )
 
     _mount_frontend(app, frontend_dist)

@@ -5,6 +5,12 @@ export interface ChatMessage {
   content: string;
 }
 
+export interface UiTheme {
+  background?: string;
+  accent?: string;
+  fontScale?: number;
+}
+
 export interface ChatResponse {
   reply: string;
   model: string;
@@ -13,4 +19,5 @@ export interface ChatResponse {
     completion_tokens?: number;
     total_tokens?: number;
   } | null;
+  ui?: UiTheme | null;
 }

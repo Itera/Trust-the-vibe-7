@@ -1,13 +1,20 @@
 import { useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { sendChat, ChatApiError } from "../api";
-import type { ChatMessage } from "../types";
+import type { ChatMessage, UiTheme } from "../types";
 import "./Chat.css";
 
 const SYSTEM_PROMPT: ChatMessage = {
   role: "system",
   content: "You are a helpful assistant. Keep responses concise.",
 };
+
+function applyUiTheme(ui: UiTheme) {
+  const root = document.documentElement;
+  if (ui.background) root.style.setProperty("--bg", ui.background);
+  if (ui.accent) root.style.setProperty("--accent", ui.accent);
+  if (ui.fontScale) root.style.setProperty("--font-scale", String(ui.fontScale));
+}
 
 export default function Chat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -33,6 +40,7 @@ export default function Chat() {
       const res = await sendChat([SYSTEM_PROMPT, ...next], {
         signal: abortRef.current.signal,
       });
+      if (res.ui) applyUiTheme(res.ui);
       setMessages((m) => [...m, { role: "assistant", content: res.reply }]);
     } catch (err) {
       if ((err as Error).name === "AbortError") return;
@@ -52,6 +60,10 @@ export default function Chat() {
     setMessages([]);
     setError(null);
     setInput("");
+    const root = document.documentElement;
+    root.style.removeProperty("--bg");
+    root.style.removeProperty("--accent");
+    root.style.removeProperty("--font-scale");
   }
 
   return (

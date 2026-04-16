@@ -19,7 +19,14 @@ class ChatRequest(BaseModel):
     max_tokens: int = Field(512, ge=1, le=4096)
 
 
+class UiTheme(BaseModel):
+    background: str | None = None
+    accent: str | None = None
+    fontScale: float | None = None
+
+
 class ChatResponse(BaseModel):
     reply: str
     model: str
     usage: dict | None = None
+    ui: UiTheme | None = None

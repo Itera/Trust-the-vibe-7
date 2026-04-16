@@ -43,8 +43,8 @@
 
 .chat__msg--user {
   align-self: flex-end;
-  background: #d8ebff;
-  color: #0b2f55;
+  background: var(--accent, #d8ebff);
+  color: var(--accent-text, #0b2f55);
 }
 
 .chat__msg--assistant {
