@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { CardKind, Language, PersonaKey, PersonaSummary } from "../types";
 import { ALL_CARD_KINDS, cardLabel } from "../personas";
+import { playPersonaSound } from "../personaSounds";
 import { THEMES } from "../themes";
 import type { Theme } from "../themes";
 
@@ -71,7 +72,10 @@ export default function SettingsBar({
                   ? { background: p.accent_color, color: "white" }
                   : { borderColor: p.accent_color, color: p.accent_color }
               }
-              onClick={() => onChange({ persona: p.key })}
+              onClick={() => {
+                playPersonaSound(p.key);
+                onChange({ persona: p.key });
+              }}
               disabled={disabled}
             >
               {p.name}
