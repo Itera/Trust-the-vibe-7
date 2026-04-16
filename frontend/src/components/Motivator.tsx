@@ -42,13 +42,16 @@ function loadSettings(): PersistedSettings {
 }
 
 interface MotivatorProps {
-  task: string;
-  onTaskChange: (task: string) => void;
+  task?: string;
+  onTaskChange?: (task: string) => void;
 }
 
-export default function Motivator({ task, onTaskChange: setTask }: MotivatorProps) {
+export default function Motivator({ task: taskProp, onTaskChange }: MotivatorProps = {}) {
+  const [internalTask, setInternalTask] = useState("");
+  const task = taskProp !== undefined ? taskProp : internalTask;
+  const setTask = onTaskChange ?? setInternalTask;
   const [settings, setSettings] = useState<PersistedSettings>(DEFAULTS);
-  const [themeId, setThemeId] = useState<string>(() => randomTheme().id);
+  const [darkMode, setDarkMode] = useState(false);
   const [personas, setPersonas] = useState<PersonaSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
