@@ -8,6 +8,7 @@ import type {
 } from "../types";
 import { ApiError, fetchPersonas, motivate } from "../api";
 import { DEFAULT_CARDS, PERSONA_THEMES } from "../personas";
+import { randomTheme } from "../themes";
 import HeroInput from "./HeroInput";
 import SettingsBar from "./SettingsBar";
 import LoadingState from "./LoadingState";
@@ -42,6 +43,7 @@ function loadSettings(): PersistedSettings {
 
 export default function Motivator() {
   const [settings, setSettings] = useState<PersistedSettings>(DEFAULTS);
+  const [themeId, setThemeId] = useState<string>(() => randomTheme().id);
   const [task, setTask] = useState("");
   const [personas, setPersonas] = useState<PersonaSummary[]>([]);
   const [loading, setLoading] = useState(false);
@@ -54,7 +56,7 @@ export default function Motivator() {
     setSettings(loadSettings());
   }, []);
 
-  // persist settings
+  // persist settings (theme is intentionally excluded — always random on load)
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
@@ -62,6 +64,14 @@ export default function Motivator() {
       /* ignore */
     }
   }, [settings]);
+
+  // Apply theme class to body
+  useEffect(() => {
+    document.body.classList.add(`theme-${themeId}`);
+    return () => {
+      document.body.classList.remove(`theme-${themeId}`);
+    };
+  }, [themeId]);
 
   // fetch personas whenever language changes
   useEffect(() => {
@@ -160,8 +170,7 @@ export default function Motivator() {
         settings.language === "no"
           ? "Itera Intern Motivasjonskonsulent"
           : "Itera Internal Motivation Consulting",
-      another:
-        settings.language === "no" ? "Ny dose" : "Another dose",
+      another: settings.language === "no" ? "Ny dose" : "Another dose",
       copy: settings.language === "no" ? "Kopier rapport" : "Copy report",
       empty:
         settings.language === "no"
@@ -194,7 +203,9 @@ export default function Motivator() {
         language={settings.language}
         seriousness={settings.seriousness}
         cards={settings.cards}
+        themeId={themeId}
         onChange={updateSettings}
+        onThemeChange={setThemeId}
         disabled={loading}
       />
 

@@ -14,7 +14,7 @@ from .guardrails import GuardrailViolation
 from .llm import AzureOpenAIError
 from .orchestrator import motivate
 from .personas import PERSONAS
-from .schemas import MotivationPackage, MotivationRequest, PersonaSummary
+from .schemas import MotivationPackage, MotivationRequest, PersonaSummary, UiTheme
 
 logger = logging.getLogger("humotivatoren")
 
@@ -57,12 +57,18 @@ def create_app(frontend_dist: Path | None = FRONTEND_DIST) -> FastAPI:
         settings: Settings = Depends(get_settings),
     ) -> MotivationPackage:
         try:
-            return await motivate(settings, req)
+            pkg = await motivate(settings, req)
         except GuardrailViolation as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         except AzureOpenAIError as exc:
             logger.warning("motivate upstream failed: %s", exc)
             raise HTTPException(status_code=502, detail=exc.detail) from exc
+
+        persona = PERSONAS.get(req.persona)
+        if persona:
+            pkg.ui = UiTheme(accent=persona.accent_color)
+
+        return pkg
 
     _mount_frontend(app, frontend_dist)
     return app
