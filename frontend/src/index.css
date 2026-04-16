@@ -1,12 +1,294 @@
+@import "tailwindcss";
+
+/* ---- Tailwind v4: dark mode via class on <html> ---- */
+@variant dark (&:where(.dark, .dark *));
+
+/* ---- Raw design tokens (dynamic) ---- */
 :root {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  color-scheme: light;
-  color: #1a1a1a;
-  background: var(--bg, #ffffff);
-  font-size: calc(16px * var(--font-scale, 1));
-  transition: background 0.6s ease, color 0.4s ease, font-size 0.4s ease;
+  /* Light palette */
+  --t-primary:          #0846ed;
+  --t-on-primary:       #f2f1ff;
+  --t-primary-container: #859aff;
+  --t-secondary:        #FF00FF;
+  --t-on-secondary:     #ffffff;
+  --t-secondary-container: #ffd6ff;
+  --t-tertiary:         #5a6000;
+  --t-on-tertiary:      #effe00;
+  --t-tertiary-container: #f0ff00;
+  --t-on-tertiary-container: #5a6000;
+  --t-background:       #f9f6f5;
+  --t-on-background:    #2f2f2e;
+  --t-surface:          #f9f6f5;
+  --t-on-surface:       #2f2f2e;
+  --t-surface-variant:  #dfdcdc;
+  --t-on-surface-variant: #5c5b5b;
+  --t-surface-container: #eae7e7;
+  --t-surface-container-low: #f3f0ef;
+  --t-surface-container-high: #e4e2e1;
+  --t-surface-container-highest: #dfdcdc;
+  --t-surface-container-lowest: #ffffff;
+  --t-outline:          #787676;
+  --t-error:            #b41340;
+  --t-on-error:         #ffefef;
+  --t-error-container:  #f74b6d;
+  --t-radius:           1rem;
+  --t-radius-lg:        2rem;
+  --t-radius-xl:        3rem;
 }
 
+html.dark {
+  /* Dark palette */
+  --t-primary:          #ff7cf5;
+  --t-on-primary:       #580058;
+  --t-primary-container: #ff5af9;
+  --t-secondary:        #00fbfb;
+  --t-on-secondary:     #005c5c;
+  --t-secondary-container: #006a6a;
+  --t-tertiary:         #fffeac;
+  --t-on-tertiary:      #626200;
+  --t-tertiary-container: #f3f300;
+  --t-on-tertiary-container: #4e4e00;
+  --t-background:       #0e0e0e;
+  --t-on-background:    #ffffff;
+  --t-surface:          #0e0e0e;
+  --t-on-surface:       #ffffff;
+  --t-surface-variant:  #262626;
+  --t-on-surface-variant: #adaaaa;
+  --t-surface-container: #1a1919;
+  --t-surface-container-low: #131313;
+  --t-surface-container-high: #201f1f;
+  --t-surface-container-highest: #262626;
+  --t-surface-container-lowest: #000000;
+  --t-outline:          #767575;
+  --t-error:            #ff6e84;
+  --t-on-error:         #490013;
+  --t-error-container:  #a70138;
+  --t-radius:           0px;
+  --t-radius-lg:        0px;
+  --t-radius-xl:        0px;
+}
+
+/* ---- Map to Tailwind tokens (inline = preserve var refs) ---- */
+@theme inline {
+  --color-primary:                 var(--t-primary);
+  --color-on-primary:              var(--t-on-primary);
+  --color-primary-container:       var(--t-primary-container);
+  --color-secondary:               var(--t-secondary);
+  --color-on-secondary:            var(--t-on-secondary);
+  --color-secondary-container:     var(--t-secondary-container);
+  --color-tertiary:                var(--t-tertiary);
+  --color-on-tertiary:             var(--t-on-tertiary);
+  --color-tertiary-container:      var(--t-tertiary-container);
+  --color-on-tertiary-container:   var(--t-on-tertiary-container);
+  --color-background:              var(--t-background);
+  --color-on-background:           var(--t-on-background);
+  --color-surface:                 var(--t-surface);
+  --color-on-surface:              var(--t-on-surface);
+  --color-surface-variant:         var(--t-surface-variant);
+  --color-on-surface-variant:      var(--t-on-surface-variant);
+  --color-surface-container:       var(--t-surface-container);
+  --color-surface-container-low:   var(--t-surface-container-low);
+  --color-surface-container-high:  var(--t-surface-container-high);
+  --color-surface-container-highest: var(--t-surface-container-highest);
+  --color-surface-container-lowest:  var(--t-surface-container-lowest);
+  --color-outline:                 var(--t-outline);
+  --color-error:                   var(--t-error);
+  --color-on-error:                var(--t-on-error);
+  --color-error-container:         var(--t-error-container);
+
+  --font-headline: "Space Grotesk", sans-serif;
+  --font-body:     "Be Vietnam Pro", sans-serif;
+  --font-label:    "Space Grotesk", sans-serif;
+
+  --radius-DEFAULT: var(--t-radius);
+  --radius-lg:      var(--t-radius-lg);
+  --radius-xl:      var(--t-radius-xl);
+  --radius-full:    9999px;
+}
+
+/* ---- Base ---- */
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "Be Vietnam Pro", sans-serif;
+  background-color: var(--t-background);
+  color: var(--t-on-background);
+  overflow-x: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+#root { width: 100%; min-height: 100vh; }
+
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; overflow: hidden;
+  clip: rect(0,0,0,0);
+  white-space: nowrap; border: 0;
+}
+
+.material-symbols-outlined {
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+}
+
+/* Kinetic slider (light) */
+.kinetic-slider::-webkit-slider-runnable-track {
+  height: 12px;
+  border-radius: 999px;
+}
+.kinetic-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  margin-top: -6px;
+  background-color: white;
+  border: 3px solid currentColor;
+  height: 24px; width: 24px;
+  border-radius: 50%;
+}
+
+/* Brutalist slider (dark) */
+html.dark .brutalist-slider::-webkit-slider-runnable-track {
+  height: 16px;
+  border-radius: 0;
+  background: var(--t-surface-variant);
+}
+html.dark .brutalist-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  margin-top: -4px;
+  background-color: currentColor;
+  border: 2px solid black;
+  height: 24px; width: 24px;
+  border-radius: 0;
+}
+
+/* Animations */
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes gradient-shift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* ---- Design tokens ---- */
+:root {
+  /* Light palette (from lightmode design) */
+  --color-primary: #0846ed;
+  --color-on-primary: #f2f1ff;
+  --color-primary-container: #859aff;
+  --color-on-primary-container: #001867;
+  --color-secondary: #FF00FF;
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #ffd6ff;
+  --color-tertiary: #5a6000;
+  --color-on-tertiary: #effe00;
+  --color-tertiary-container: #f0ff00;
+  --color-on-tertiary-container: #5a6000;
+  --color-background: #f9f6f5;
+  --color-on-background: #2f2f2e;
+  --color-surface: #f9f6f5;
+  --color-on-surface: #2f2f2e;
+  --color-surface-variant: #dfdcdc;
+  --color-on-surface-variant: #5c5b5b;
+  --color-surface-container: #eae7e7;
+  --color-surface-container-low: #f3f0ef;
+  --color-surface-container-high: #e4e2e1;
+  --color-surface-container-highest: #dfdcdc;
+  --color-surface-container-lowest: #ffffff;
+  --color-outline: #787676;
+  --color-error: #b41340;
+  --color-on-error: #ffefef;
+  --color-error-container: #f74b6d;
+  --radius-default: 1rem;
+  --radius-lg: 2rem;
+  --radius-xl: 3rem;
+}
+
+html.dark {
+  /* Dark palette (from darkmode design) */
+  --color-primary: #ff7cf5;
+  --color-on-primary: #580058;
+  --color-primary-container: #ff5af9;
+  --color-on-primary-container: #440044;
+  --color-secondary: #00fbfb;
+  --color-on-secondary: #005c5c;
+  --color-secondary-container: #006a6a;
+  --color-tertiary: #fffeac;
+  --color-on-tertiary: #626200;
+  --color-tertiary-container: #f3f300;
+  --color-on-tertiary-container: #4e4e00;
+  --color-background: #0e0e0e;
+  --color-on-background: #ffffff;
+  --color-surface: #0e0e0e;
+  --color-on-surface: #ffffff;
+  --color-surface-variant: #262626;
+  --color-on-surface-variant: #adaaaa;
+  --color-surface-container: #1a1919;
+  --color-surface-container-low: #131313;
+  --color-surface-container-high: #201f1f;
+  --color-surface-container-highest: #262626;
+  --color-surface-container-lowest: #000000;
+  --color-outline: #767575;
+  --color-error: #ff6e84;
+  --color-on-error: #490013;
+  --color-error-container: #a70138;
+  --radius-default: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+}
+
+/* ---- Tailwind theme config via CSS ---- */
+@theme inline {
+  --color-primary: var(--color-primary);
+  --color-on-primary: var(--color-on-primary);
+  --color-primary-container: var(--color-primary-container);
+  --color-on-primary-container: var(--color-on-primary-container);
+  --color-secondary: var(--color-secondary);
+  --color-on-secondary: var(--color-on-secondary);
+  --color-secondary-container: var(--color-secondary-container);
+  --color-tertiary: var(--color-tertiary);
+  --color-on-tertiary: var(--color-on-tertiary);
+  --color-tertiary-container: var(--color-tertiary-container);
+  --color-on-tertiary-container: var(--color-on-tertiary-container);
+  --color-background: var(--color-background);
+  --color-on-background: var(--color-on-background);
+  --color-surface: var(--color-surface);
+  --color-on-surface: var(--color-on-surface);
+  --color-surface-variant: var(--color-surface-variant);
+  --color-on-surface-variant: var(--color-on-surface-variant);
+  --color-surface-container: var(--color-surface-container);
+  --color-surface-container-low: var(--color-surface-container-low);
+  --color-surface-container-high: var(--color-surface-container-high);
+  --color-surface-container-highest: var(--color-surface-container-highest);
+  --color-surface-container-lowest: var(--color-surface-container-lowest);
+  --color-outline: var(--color-outline);
+  --color-error: var(--color-error);
+  --color-on-error: var(--color-on-error);
+  --color-error-container: var(--color-error-container);
+
+  --font-headline: "Space Grotesk", sans-serif;
+  --font-body: "Be Vietnam Pro", sans-serif;
+  --font-label: "Space Grotesk", sans-serif;
+
+  --radius-DEFAULT: var(--radius-default);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+  --radius-full: 9999px;
+}
+
+/* ---- Base ---- */
 * {
   box-sizing: border-box;
 }
@@ -14,7 +296,11 @@
 body {
   margin: 0;
   min-height: 100vh;
-  transition: background 1s ease, color 0.4s ease;
+  font-family: "Be Vietnam Pro", sans-serif;
+  background-color: var(--color-background);
+  color: var(--color-on-background);
+  transition: background-color 0.3s ease, color 0.3s ease;
+  overflow-x: hidden;
 }
 
 #root {
@@ -33,63 +319,60 @@ body {
   border: 0;
 }
 
-/* ---------- animated theme backgrounds ---------- */
-
-@keyframes gradient-shift {
-  0%   { background-position: 0% 50%; }
-  50%  { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+/* Material Symbols weight */
+.material-symbols-outlined {
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
 }
 
-body.theme-vaporwave {
-  background: linear-gradient(-45deg, #ff6cff, #a96cff, #6cc9ff, #ff9de2, #c084fc);
-  background-size: 400% 400%;
-  animation: gradient-shift 9s ease infinite;
+/* Kinetic slider */
+.kinetic-slider::-webkit-slider-runnable-track {
+  height: 12px;
+  border-radius: 999px;
+}
+.kinetic-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  margin-top: -6px;
+  background-color: white;
+  border: 3px solid currentColor;
+  height: 24px;
+  width: 24px;
+  border-radius: 50%;
 }
 
-body.theme-cyberpunk {
-  background: linear-gradient(-45deg, #0d0221, #1a0535, #0a0a23, #190d34, #2d0057);
-  background-size: 400% 400%;
-  animation: gradient-shift 12s ease infinite;
-  color: #e0e0e0;
+/* Dark brutalist sliders */
+html.dark .brutalist-slider::-webkit-slider-runnable-track {
+  height: 16px;
+  border-radius: 0;
+  background: var(--color-surface-variant);
+}
+html.dark .brutalist-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  margin-top: -4px;
+  background-color: currentColor;
+  border: 2px solid black;
+  height: 24px;
+  width: 24px;
+  border-radius: 0;
 }
 
-body.theme-cottagecore {
-  background: linear-gradient(-45deg, #d4edda, #a8d5a2, #f9e4b7, #e8c5a0, #c9e8d0);
-  background-size: 400% 400%;
-  animation: gradient-shift 11s ease infinite;
+/* Card animation */
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-body.theme-corporate-hell {
-  background: linear-gradient(-45deg, #0a0f2e, #071428, #0d1a3a, #050d20, #101c40);
-  background-size: 400% 400%;
-  animation: gradient-shift 16s ease infinite;
-  color: #c8d6e8;
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-body.theme-aurora {
-  background: linear-gradient(-45deg, #0d1b2a, #1b4332, #1565c0, #6a0572, #0a3d62, #1b4332);
-  background-size: 400% 400%;
-  animation: gradient-shift 10s ease infinite;
-  color: #e0f7f0;
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
-body.theme-synthwave {
-  background: linear-gradient(-45deg, #2d1b69, #f953c6, #b91d73, #11998e, #2d1b69);
-  background-size: 400% 400%;
-  animation: gradient-shift 8s ease infinite;
-  color: #f0e0ff;
-}
-
-body.theme-lava {
-  background: linear-gradient(-45deg, #200122, #6f0000, #c0392b, #6f0000, #200122);
-  background-size: 400% 400%;
-  animation: gradient-shift 7s ease infinite;
-  color: #ffe0d0;
-}
-
-body.theme-acid {
-  background: linear-gradient(-45deg, #f9f047, #43e97b, #f9f047, #fa709a, #43e97b);
-  background-size: 400% 400%;
-  animation: gradient-shift 6s ease infinite;
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(255, 110, 132, 0.5); }
+  50%       { box-shadow: 0 0 40px rgba(255, 110, 132, 0.9); }
 }

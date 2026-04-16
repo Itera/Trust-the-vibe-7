@@ -1,8 +1,9 @@
+/* Legacy persona CSS vars kept for backward compatibility */
 :root {
   --persona-accent: #1e3a5f;
   --persona-accent-soft: #dbe6f3;
-  --persona-title-font: "Times New Roman", Georgia, serif;
-  --persona-body-font: "Helvetica Neue", Arial, sans-serif;
+  --persona-title-font: "Space Grotesk", sans-serif;
+  --persona-body-font: "Be Vietnam Pro", sans-serif;
   --persona-grid-tone: #f4f6f9;
 }
 
