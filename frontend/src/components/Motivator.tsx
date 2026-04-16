@@ -80,6 +80,16 @@ export default function Motivator() {
 
   const theme = PERSONA_THEMES[settings.persona];
 
+  // Apply background from response persona theme, reset when pkg is cleared
+  useEffect(() => {
+    const root = document.documentElement;
+    if (pkg) {
+      root.style.setProperty("--bg", PERSONA_THEMES[pkg.persona].gridTone);
+    } else {
+      root.style.removeProperty("--bg");
+    }
+  }, [pkg]);
+
   const cssVars = useMemo(
     () =>
       ({
