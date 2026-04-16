@@ -85,7 +85,7 @@ export default function MotivationCard({ card, index = 0, darkMode = false }: Pr
                 src={card.image_url}
                 alt={card.title}
                 loading="lazy"
-                className="w-full h-48 object-cover filter saturate-150 contrast-125"
+                className="w-full h-auto object-contain filter saturate-150 contrast-125"
                 onError={(e) => {
                   const img = e.currentTarget;
                   if (!img.dataset.retried) {
@@ -155,7 +155,7 @@ export default function MotivationCard({ card, index = 0, darkMode = false }: Pr
               src={card.image_url}
               alt={card.title}
               loading="lazy"
-              className="w-full h-48 object-cover"
+              className="w-full h-auto object-contain"
               onError={(e) => {
                 const img = e.currentTarget;
                 if (!img.dataset.retried) {
