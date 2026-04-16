@@ -1,37 +1,51 @@
-import type { ChatMessage, ChatResponse } from "./types";
+import type {
+  Language,
+  MotivationPackage,
+  MotivationRequest,
+  PersonaSummary,
+} from "./types";
 
-export class ChatApiError extends Error {
+export class ApiError extends Error {
   status: number;
   constructor(status: number, message: string) {
     super(message);
     this.status = status;
-    this.name = "ChatApiError";
+    this.name = "ApiError";
   }
 }
 
-export async function sendChat(
-  messages: ChatMessage[],
+async function parseErrorDetail(res: Response): Promise<string> {
+  try {
+    const body = await res.json();
+    if (typeof body?.detail === "string") return body.detail;
+    if (body?.detail) return JSON.stringify(body.detail);
+  } catch {
+    /* not json */
+  }
+  return res.statusText || "Request failed";
+}
+
+export async function motivate(
+  req: MotivationRequest,
   options: { signal?: AbortSignal; baseUrl?: string } = {},
-): Promise<ChatResponse> {
-  const url = `${options.baseUrl ?? ""}/api/chat`;
+): Promise<MotivationPackage> {
+  const url = `${options.baseUrl ?? ""}/api/motivate`;
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ messages }),
+    body: JSON.stringify(req),
     signal: options.signal,
   });
+  if (!res.ok) throw new ApiError(res.status, await parseErrorDetail(res));
+  return (await res.json()) as MotivationPackage;
+}
 
-  if (!res.ok) {
-    let detail = res.statusText;
-    try {
-      const body = await res.json();
-      if (typeof body?.detail === "string") detail = body.detail;
-      else if (body?.detail) detail = JSON.stringify(body.detail);
-    } catch {
-      /* ignore */
-    }
-    throw new ChatApiError(res.status, detail);
-  }
-
-  return (await res.json()) as ChatResponse;
+export async function fetchPersonas(
+  language: Language,
+  options: { baseUrl?: string } = {},
+): Promise<PersonaSummary[]> {
+  const url = `${options.baseUrl ?? ""}/api/personas?language=${language}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new ApiError(res.status, await parseErrorDetail(res));
+  return (await res.json()) as PersonaSummary[];
 }

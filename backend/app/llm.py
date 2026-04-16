@@ -6,7 +6,6 @@ from typing import Any
 import httpx
 
 from .config import Settings
-from .schemas import ChatMessage
 
 
 class AzureOpenAIError(RuntimeError):
@@ -20,18 +19,22 @@ class AzureOpenAIError(RuntimeError):
 
 async def chat_completion(
     settings: Settings,
-    messages: list[ChatMessage],
+    messages: list[dict[str, str]],
     *,
     temperature: float = 0.7,
-    max_tokens: int = 512,
+    max_tokens: int = 1200,
+    response_format: dict[str, str] | None = None,
     client: httpx.AsyncClient | None = None,
 ) -> dict[str, Any]:
     """Call the configured Azure OpenAI deployment and return the parsed JSON."""
-    payload = {
-        "messages": [m.model_dump() for m in messages],
+    payload: dict[str, Any] = {
+        "messages": messages,
         "temperature": temperature,
         "max_tokens": max_tokens,
     }
+    if response_format is not None:
+        payload["response_format"] = response_format
+
     headers = {
         "api-key": settings.azure_openai_api_key,
         "Content-Type": "application/json",
@@ -47,7 +50,6 @@ async def chat_completion(
         resp = await _send(client)
 
     if resp.status_code >= 400:
-        # Surface a compact detail; don't leak the API key back.
         try:
             detail = resp.json()
         except ValueError:
