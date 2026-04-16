@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import random
 from typing import Any
 
 import httpx
@@ -14,6 +15,8 @@ from .apis import (
     fetch_number_trivia,
     fetch_quote,
     fetch_useless_fact,
+    build_meme_url,
+    get_curated_templates,
 )
 from .config import Settings
 from .guardrails import GuardrailViolation, validate_input, validate_output, validate_task_values
@@ -44,6 +47,8 @@ async def gather_raw_materials(
     wants_advice = "advice" in req.cards or "recommendation" in req.cards
     wants_quote = "quote" in req.cards
 
+    wants_meme = "meme" in req.cards
+
     tasks = {
         "quote": _safe(fetch_quote(client)) if wants_quote else None,
         "fact": _safe(fetch_useless_fact(client, language=req.language)) if wants_fact else None,
@@ -51,10 +56,18 @@ async def gather_raw_materials(
         "number_trivia": _safe(fetch_number_trivia(client)) if wants_numbers else None,
         "image": _safe(fetch_cat_image(client)) if wants_image else None,
     }
+
+    # Meme templates are local data — no async fetch needed.
+    raw_meme_templates = get_curated_templates() if wants_meme else None
+    if raw_meme_templates:
+        raw_meme_templates = random.sample(raw_meme_templates, len(raw_meme_templates))
     # Keep only the ones we actually requested.
     active = {k: v for k, v in tasks.items() if v is not None}
     results = await asyncio.gather(*active.values())
-    return dict(zip(active.keys(), results))
+    out = dict(zip(active.keys(), results))
+    if raw_meme_templates:
+        out["meme_templates"] = raw_meme_templates
+    return out
 
 
 # ---------- prompt construction ---------------------------------------------
@@ -155,6 +168,19 @@ def _card_menu(kinds: list[str], language: str) -> str:
         "playlist": "A 3-song fake playlist for doing this task (titles + artists, made up).",
         "testimonial": "A fake customer testimonial from 'Nils, 34' style, endorsing the task.",
         "recommendation": "A 'pair with…' recommendation (e.g. 'Pair with a 12-min timer and oat milk.').",
+        "meme": (
+            "A meme card. Study the 'use' field of each template in raw_materials.meme_templates "
+            "and pick the ONE template whose comedic format best fits the user's task. "
+            "IMPORTANT: Do NOT default to 'drake' — seriously consider ALL templates and vary your choice. "
+            "At low seriousness (< 30), prefer subtle/dry templates like 'cmm', 'interesting', 'mordor', 'pooh', or 'kermit'. "
+            "At medium seriousness (30-60), use versatile ones like 'astronaut', 'rollsafe', 'db', 'fry', or 'pigeon'. "
+            "At high seriousness (> 60), go wild with 'fine', 'batman', 'facepalm', 'spongebob', 'panik-kalm-panik', or 'slap'. "
+            "If the user's task mentions ANY person's name(s), you MUST include at least one name directly in the top_text or bottom_text — "
+            "e.g. 'When Erik says it's easy' or 'Lisa watching you struggle'. This is mandatory, not optional. "
+            "Set meme_template_id to the chosen id. Write a short top_text and bottom_text "
+            "that are funny and directly relevant to the user's specific task. "
+            "The image will be generated automatically."
+        ),
     }
     descriptions_no = {
         "peptalk": "En 2-3 setningers heltemodig peptalk som binder alt til oppgaven.",
@@ -169,6 +195,19 @@ def _card_menu(kinds: list[str], language: str) -> str:
         "playlist": "En oppdiktet 3-låts spilleliste for denne oppgaven (titler + artister).",
         "testimonial": "Et oppdiktet kundeutsagn i stil 'Nils, 34', som roser oppgaven.",
         "recommendation": "En 'kombiner med…'-anbefaling (f.eks. 'Kombiner med en 12-min timer og havremelk.').",
+        "meme": (
+            "Et meme-kort. Les 'use'-feltet til hver mal i raw_materials.meme_templates "
+            "og velg den ENE malen som passer best til brukerens oppgave. "
+            "VIKTIG: IKKE velg 'drake' som standard — vurder ALLE maler og varier valget. "
+            "Ved lav seriousness (< 30), foretrekk subtile maler som 'cmm', 'interesting', 'mordor', 'pooh' eller 'kermit'. "
+            "Ved middels seriousness (30-60), bruk 'astronaut', 'rollsafe', 'db', 'fry' eller 'pigeon'. "
+            "Ved høy seriousness (> 60), gå vilt med 'fine', 'batman', 'facepalm', 'spongebob', 'panik-kalm-panik' eller 'slap'. "
+            "Hvis brukerens oppgave nevner personnavn, MÅ du inkludere minst ett navn direkte i top_text eller bottom_text — "
+            "f.eks. 'Når Erik sier det er lett' eller 'Lisa ser deg slite'. Dette er obligatorisk. "
+            "Sett meme_template_id til valgt id. Skriv kort top_text og bottom_text "
+            "som er morsomt og direkte relevant for brukerens spesifikke oppgave. "
+            "Bildet genereres automatisk."
+        ),
     }
     descs = descriptions_no if language == "no" else descriptions_en
     lines = [f"- {k}: {descs.get(k, 'Free form.')}" for k in kinds]
@@ -200,6 +239,9 @@ def build_messages(
         '      "body": "the card content, in persona voice",\n'
         '      "attribution": "optional — e.g. \'— Seneca\' for quotes, or null",\n'
         '      "image_url": "REQUIRED when kind == image, otherwise null",\n'
+        '      "meme_template_id": "REQUIRED when kind == meme — the template id from meme_templates, otherwise null",\n'
+        '      "meme_top_text": "REQUIRED when kind == meme — short top caption, otherwise null",\n'
+        '      "meme_bottom_text": "REQUIRED when kind == meme — short bottom caption, otherwise null",\n'
         '      "source": "optional — e.g. \'quotable.io\' or \'HuMotivatoren\'"\n'
         '    }\n'
         '  ]\n'
@@ -221,11 +263,15 @@ def build_messages(
         "Produce exactly one card per requested kind, in the requested order. "
         "Use the raw materials wherever natural — rewrite them in persona voice "
         "if it improves the piece. For the 'image' card, you MUST set image_url "
-        "to the URL from raw_materials.image.url (or omit the card if missing)."
+        "to the URL from raw_materials.image.url (or omit the card if missing).\n\n"
+        "IMPORTANT — NAMES: If the user's task mentions any person's name(s), "
+        "you MUST weave those names into the cards — especially meme captions, "
+        "pep talks, testimonials, and horoscopes. Make it personal and funny."
     )
 
     user = (
         f"User's task: {req.task!r}\n\n"
+        f"Seriousness level: {req.seriousness}/100\n\n"
         f"Requested card kinds (in order): {req.cards}\n\n"
         f"Raw materials fetched from the internet:\n{raw_blob}\n\n"
         "Before writing, briefly note to yourself (not in output): what domain is this "
@@ -274,6 +320,7 @@ async def motivate(
 
         cards_raw: list[dict[str, Any]] = parsed.get("cards") or []
         cards: list[Card] = []
+        meme_meta: list[dict[str, Any]] = []  # parallel list for meme post-processing
         allowed = set(req.cards)
         for c_raw in cards_raw:
             kind = c_raw.get("kind")
@@ -291,11 +338,28 @@ async def motivate(
                     source=(c_raw.get("source") or None),
                 )
             )
+            meme_meta.append(c_raw)
 
         # Ensure image cards have a URL — fall back to raw material if the model forgot.
         for card in cards:
             if card.kind == "image" and not card.image_url and raw.get("image"):
                 card.image_url = raw["image"].get("url")
+
+        # Build meme image URLs synchronously — memegen.link needs no HTTP call.
+        valid_template_ids = {t["id"] for t in get_curated_templates()}
+        for card, meta in zip(cards, meme_meta):
+            if card.kind != "meme":
+                continue
+            tid = meta.get("meme_template_id")
+            # Fall back to a random template if the LLM omitted or returned an unknown id.
+            if not tid or tid not in valid_template_ids:
+                tid = random.choice(list(valid_template_ids))
+                logger.warning("LLM returned invalid/missing meme_template_id; falling back to %r", tid)
+            top = meta.get("meme_top_text") or "When you need motivation"
+            bot = meta.get("meme_bottom_text") or req.task
+            card.image_url = build_meme_url(str(tid), top, bot)
+            card.source = "memegen.link"
+            logger.debug("Meme URL built: %s", card.image_url)
 
         return MotivationPackage(
             task=req.task,

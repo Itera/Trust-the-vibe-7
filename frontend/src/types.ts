@@ -13,7 +13,8 @@ export type CardKind =
   | "horoscope"
   | "playlist"
   | "testimonial"
-  | "recommendation";
+  | "recommendation"
+  | "meme";
 
 export interface Card {
   kind: CardKind;

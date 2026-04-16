@@ -23,6 +23,7 @@ CardKind = Literal[
     "playlist",
     "testimonial",
     "recommendation",
+    "meme",
 ]
 
 DEFAULT_CARDS: list[CardKind] = [

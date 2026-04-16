@@ -7,6 +7,7 @@ interface Props {
 const SIZE_BY_KIND: Record<string, string> = {
   peptalk: "card--hero",
   image: "card--tall",
+  meme: "card--tall",
   fact: "card--wide",
   quote: "card--wide",
   haiku: "card--tall",
@@ -27,7 +28,20 @@ export default function MotivationCard({ card }: Props) {
 
       {card.image_url ? (
         <figure className="card__figure">
-          <img src={card.image_url} alt="" loading="lazy" />
+          <img
+            src={card.image_url}
+            alt={card.title}
+            loading="lazy"
+            onError={(e) => {
+              const img = e.currentTarget;
+              // Retry once with a cache-bust; memegen.link can be flaky
+              if (!img.dataset.retried) {
+                img.dataset.retried = "1";
+                const sep = img.src.includes("?") ? "&" : "?";
+                img.src = img.src + sep + "cb=" + Date.now();
+              }
+            }}
+          />
           {card.body && <figcaption>{card.body}</figcaption>}
         </figure>
       ) : (
