@@ -41,10 +41,14 @@ function loadSettings(): PersistedSettings {
   }
 }
 
-export default function Motivator() {
+interface MotivatorProps {
+  task: string;
+  onTaskChange: (task: string) => void;
+}
+
+export default function Motivator({ task, onTaskChange: setTask }: MotivatorProps) {
   const [settings, setSettings] = useState<PersistedSettings>(DEFAULTS);
   const [themeId, setThemeId] = useState<string>(() => randomTheme().id);
-  const [task, setTask] = useState("");
   const [personas, setPersonas] = useState<PersonaSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

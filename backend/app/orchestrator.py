@@ -112,14 +112,37 @@ def _anti_corporate_guidance(persona_key: str) -> str:
 
 def _seriousness_guidance(level: int) -> str:
     if level < 20:
-        return "Tone: fully deadpan professional, like a real consulting deliverable."
+        return (
+            "Tone: fully deadpan professional, like a real consulting deliverable. "
+            "Write in complete, polished sentences. No slang, no exclamation marks, no emojis. "
+            "The humor comes entirely from being TOO serious about something trivial."
+        )
     if level < 45:
-        return "Tone: mostly professional with a subtle absurd undercurrent."
+        return (
+            "Tone: mostly professional with a subtle absurd undercurrent. "
+            "Sentences are well-formed but occasionally drop in something unexpected. "
+            "Light wit, dry humor, the occasional raised eyebrow."
+        )
     if level < 70:
-        return "Tone: balanced — professional structure, openly playful content."
+        return (
+            "Tone: balanced — professional structure, openly playful content. "
+            "Mix proper sentences with casual asides. Use humor freely. "
+            "Exclamation marks allowed. Mild exaggeration encouraged."
+        )
     if level < 90:
-        return "Tone: leaning unhinged; corporate shell with chaotic filling."
-    return "Tone: maximum unhinged energy while staying kind and on-brand."
+        return (
+            "Tone: leaning unhinged; corporate shell with chaotic filling. "
+            "Grammar is optional. Sentence fragments welcome. Exaggerate wildly. "
+            "Use ALL CAPS for emphasis, throw in dramatic pauses (…), "
+            "and write like someone who's had way too much coffee."
+        )
+    return (
+        "Tone: MAXIMUM UNHINGED ENERGY. "
+        "Abandon all professionalism. Sentence structure? Never heard of her. "
+        "ALL CAPS freely, chaotic punctuation (!!!, ???, ...), dramatic monologues, "
+        "absurd metaphors, existential tangents, and pure theatrical chaos. "
+        "Write like a caffeinated gremlin giving a TED talk at 3 AM."
+    )
 
 
 def _task_anchoring_guidance(task: str) -> str:
@@ -175,6 +198,11 @@ def _card_menu(kinds: list[str], language: str) -> str:
             "At low seriousness (< 30), prefer subtle/dry templates like 'cmm', 'interesting', 'mordor', 'pooh', or 'kermit'. "
             "At medium seriousness (30-60), use versatile ones like 'astronaut', 'rollsafe', 'db', 'fry', or 'pigeon'. "
             "At high seriousness (> 60), go wild with 'fine', 'batman', 'facepalm', 'spongebob', 'panik-kalm-panik', or 'slap'. "
+            "MEME CAPTION TONE must also match seriousness: "
+            "At low seriousness (< 30), captions should be dry, understated, deadpan — like a polite observation. "
+            "At medium seriousness (30-60), captions should be playful, witty, and a bit cheeky. "
+            "At high seriousness (> 60), captions should be chaotic, absurd, dramatic, and completely unhinged — "
+            "exaggerate wildly, use ALL CAPS where it's funny, be theatrical and over-the-top. "
             "If the user's task mentions ANY person's name(s), you MUST include at least one name directly in the top_text or bottom_text — "
             "e.g. 'When Erik says it's easy' or 'Lisa watching you struggle'. This is mandatory, not optional. "
             "Set meme_template_id to the chosen id. Write a short top_text and bottom_text "
@@ -202,6 +230,11 @@ def _card_menu(kinds: list[str], language: str) -> str:
             "Ved lav seriousness (< 30), foretrekk subtile maler som 'cmm', 'interesting', 'mordor', 'pooh' eller 'kermit'. "
             "Ved middels seriousness (30-60), bruk 'astronaut', 'rollsafe', 'db', 'fry' eller 'pigeon'. "
             "Ved høy seriousness (> 60), gå vilt med 'fine', 'batman', 'facepalm', 'spongebob', 'panik-kalm-panik' eller 'slap'. "
+            "MEME-TEKST TONE må også matche seriousness: "
+            "Ved lav seriousness (< 30), skal tekstene være tørre, understated, deadpan — som en høflig observasjon. "
+            "Ved middels seriousness (30-60), skal tekstene være lekne, vittige og litt freidige. "
+            "Ved høy seriousness (> 60), skal tekstene være kaotiske, absurde, dramatiske og helt unhinged — "
+            "overdriv vilt, bruk STORE BOKSTAVER der det er morsomt, vær teatralsk og over-the-top. "
             "Hvis brukerens oppgave nevner personnavn, MÅ du inkludere minst ett navn direkte i top_text eller bottom_text — "
             "f.eks. 'Når Erik sier det er lett' eller 'Lisa ser deg slite'. Dette er obligatorisk. "
             "Sett meme_template_id til valgt id. Skriv kort top_text og bottom_text "

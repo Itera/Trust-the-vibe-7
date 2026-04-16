@@ -51,6 +51,57 @@ def create_app(frontend_dist: Path | None = FRONTEND_DIST) -> FastAPI:
             for p in PERSONAS.values()
         ]
 
+    @app.get("/api/frog")
+    async def frog_endpoint(
+        click_count: int = 0,
+        task: str = "",
+        settings: Settings = Depends(get_settings),
+    ) -> dict[str, str]:
+        from .llm import chat_completion as _chat
+
+        annoyed = click_count > 0 and click_count % 5 == 0
+        task = task.strip()[:200]  # sanitise
+        if annoyed:
+            system = (
+                "You are a small grumpy frog who is very annoyed at being poked repeatedly. "
+                "Respond with exactly one short, exasperated sentence expressing your irritation "
+                "at being clicked so many times. Stay in character as a frog. Be funny."
+            )
+            if task:
+                user_msg = (
+                    f"The user is trying to do: '{task}'. "
+                    f"I have been poked {click_count} times now. "
+                    "Express your annoyance, making a sarcastic reference to their task."
+                )
+            else:
+                user_msg = f"I have been poked {click_count} times now. Express your annoyance."
+        else:
+            system = (
+                "You are a cheerful little frog sitting in the corner of a web page. "
+                "Respond with exactly one uplifting, whimsical sentence of motivation or encouragement. "
+                "Keep it short and frog-flavoured."
+            )
+            if task:
+                user_msg = (
+                    f"The user is about to: '{task}'. "
+                    "Give them a one-sentence motivational message specifically about their task."
+                )
+            else:
+                user_msg = "Give me a one-sentence motivation."
+
+        messages = [
+            {"role": "system", "content": system},
+            {"role": "user", "content": user_msg},
+        ]
+        try:
+            result = await _chat(settings, messages, temperature=0.9, max_tokens=100)
+            text = result["choices"][0]["message"]["content"].strip()
+        except AzureOpenAIError as exc:
+            logger.warning("frog upstream failed: %s", exc)
+            raise HTTPException(status_code=502, detail=exc.detail) from exc
+
+        return {"message": text, "annoyed": "true" if annoyed else "false"}
+
     @app.post("/api/motivate", response_model=MotivationPackage)
     async def motivate_endpoint(
         req: MotivationRequest,
