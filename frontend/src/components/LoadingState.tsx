@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { Language } from "../types";
 import { LOADING_LINES_EN, LOADING_LINES_NO } from "../personas";
 import { randomAnimalGif } from "../animalGif";
+import { startLoadingMusic, stopLoadingMusic } from "../loadingMusic";
 
 interface Props {
   language: Language;
@@ -17,6 +18,11 @@ export default function LoadingState({ language }: Props) {
     if (fetched.current) return;
     fetched.current = true;
     randomAnimalGif().then(setGifUrl);
+  }, []);
+
+  useEffect(() => {
+    startLoadingMusic();
+    return () => stopLoadingMusic();
   }, []);
 
   useEffect(() => {
