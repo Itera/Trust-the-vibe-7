@@ -10,6 +10,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .config import Settings, get_settings
+from .guardrails import GuardrailViolation
 from .llm import AzureOpenAIError
 from .orchestrator import motivate
 from .personas import PERSONAS
@@ -57,6 +58,8 @@ def create_app(frontend_dist: Path | None = FRONTEND_DIST) -> FastAPI:
     ) -> MotivationPackage:
         try:
             return await motivate(settings, req)
+        except GuardrailViolation as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
         except AzureOpenAIError as exc:
             logger.warning("motivate upstream failed: %s", exc)
             raise HTTPException(status_code=502, detail=exc.detail) from exc

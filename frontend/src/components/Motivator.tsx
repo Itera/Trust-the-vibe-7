@@ -118,11 +118,16 @@ export default function Motivator() {
       setPkg(out);
     } catch (err) {
       if ((err as Error).name === "AbortError") return;
-      const detail =
-        err instanceof ApiError
-          ? `(${err.status}) ${err.message}`
-          : (err as Error).message || "Something went wrong.";
-      setError(detail);
+      if (err instanceof ApiError && err.status === 422) {
+        setPkg(null);
+        setError(err.message);
+      } else {
+        const detail =
+          err instanceof ApiError
+            ? `(${err.status}) ${err.message}`
+            : (err as Error).message || "Something went wrong.";
+        setError(detail);
+      }
     } finally {
       setLoading(false);
     }
