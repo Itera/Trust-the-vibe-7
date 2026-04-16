@@ -2,8 +2,6 @@ import { useState } from "react";
 import type { CardKind, Language, PersonaKey, PersonaSummary } from "../types";
 import { ALL_CARD_KINDS, cardLabel } from "../personas";
 import { playPersonaSound } from "../personaSounds";
-import { THEMES } from "../themes";
-import type { Theme } from "../themes";
 
 interface Props {
   personas: PersonaSummary[];
