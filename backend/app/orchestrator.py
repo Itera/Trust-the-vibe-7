@@ -16,6 +16,7 @@ from .apis import (
     fetch_useless_fact,
 )
 from .config import Settings
+from .guardrails import GuardrailViolation, validate_input, validate_output, validate_task_values
 from .llm import chat_completion
 from .personas import Persona, get_persona
 from .schemas import Card, MotivationPackage, MotivationRequest
@@ -58,12 +59,42 @@ async def gather_raw_materials(
 
 # ---------- prompt construction ---------------------------------------------
 
+# Hard limits in plain language — no corporate framing.
 VALUES_GUARDRAIL = (
-    "Absolute rules: keep it warm, cheeky, absurd-but-kind. Never mean-spirited. "
-    "No politics, religion, nationalism, body-shaming, or stereotyping. "
-    "Stay workplace-safe. Humor punches sideways, never down. "
-    "If a source is unusable, quietly skip it."
+    "Hard limits (every persona, no exceptions):\n"
+    "- No politics, religion, or nationalism.\n"
+    "- No stereotyping, body-shaming, or jokes that target any group. "
+    "Humour punches sideways, never down.\n"
+    "- Keep it workplace-safe and kind.\n"
+    "- Don't present made-up content as real; be clear when something is fictional or satirical.\n"
+    "- Celebrate effort and creativity; never mock someone's ambition.\n"
+    "- If a raw material is unusable, quietly skip it."
 )
+
+# Words that make everything sound like a slide deck.
+_CORPORATE_BUZZWORDS = (
+    "synergy/synergies, alignment/aligned, leverage, paradigm shift, north star, "
+    "low-hanging fruit, circle back, bandwidth, drill down, move the needle, "
+    "scalable, value proposition, stakeholders, deliverables, action items, "
+    "best practices, ROI, impact-driven, ecosystem, holistic, ideate, pivot, "
+    "unlock your potential, leverage your strengths, empower, learnings, "
+    "deep dive, touch base, net-net, at the end of the day, going forward"
+)
+
+
+def _anti_corporate_guidance(persona_key: str) -> str:
+    if persona_key == "consultant":
+        return (
+            "LANGUAGE: Corporate jargon is your entire personality. "
+            f"Weaponise these words with maximum sincerity: {_CORPORATE_BUZZWORDS}. "
+            "The denser the buzzword soup, the better — that's exactly the joke."
+        )
+    return (
+        "LANGUAGE: Absolutely zero corporate speak. Not even a little bit. "
+        f"If you catch yourself reaching for any of these, stop and use a real human word instead: "
+        f"{_CORPORATE_BUZZWORDS}. "
+        "Write like a person talking to a friend — casual, specific, alive."
+    )
 
 
 def _seriousness_guidance(level: int) -> str:
@@ -76,6 +107,38 @@ def _seriousness_guidance(level: int) -> str:
     if level < 90:
         return "Tone: leaning unhinged; corporate shell with chaotic filling."
     return "Tone: maximum unhinged energy while staying kind and on-brand."
+
+
+def _task_anchoring_guidance(task: str) -> str:
+    """Return prompt instructions that force the model to mirror the user's task closely."""
+    word_count = len(task.split())
+
+    register_hint: str
+    if word_count <= 4:
+        register_hint = (
+            "The user was terse — keep cards punchy and to-the-point, no waffle."
+        )
+    elif word_count <= 10:
+        register_hint = (
+            "Match the user's casual, conversational register throughout."
+        )
+    else:
+        register_hint = (
+            "The user gave detail — use the specifics they mentioned; go deep, not broad."
+        )
+
+    return (
+        "TASK ANCHORING (critical):\n"
+        "- Read the task carefully. Identify its domain, key verbs, nouns, and any "
+        "jargon the user used. Weave those exact words and concepts into every card.\n"
+        "- Generic motivation filler ('you've got this!', 'leverage your strengths', "
+        "'unlock your potential') is FORBIDDEN unless it is ironic or in-character.\n"
+        "- Each card must be so specific to this task that it would make no sense "
+        "applied to a different task.\n"
+        "- Echo the user's own energy: if they sound excited, match it; "
+        "if they sound tired or reluctant, acknowledge it with warmth.\n"
+        f"- Register note: {register_hint}"
+    )
 
 
 def _card_menu(kinds: list[str], language: str) -> str:
@@ -119,6 +182,8 @@ def build_messages(
 ) -> list[dict[str, str]]:
     voice = persona.voice(req.language)
     seriousness = _seriousness_guidance(req.seriousness)
+    task_anchoring = _task_anchoring_guidance(req.task)
+    language_guidance = _anti_corporate_guidance(req.persona)
 
     language_name = "Norwegian (bokmål)" if req.language == "no" else "English"
 
@@ -148,6 +213,8 @@ def build_messages(
         f"VOICE INSTRUCTIONS: {voice}\n"
         f"RESPONSE LANGUAGE: {language_name}. Write ALL user-facing text in this language.\n"
         f"{seriousness}\n\n"
+        f"{language_guidance}\n\n"
+        f"{task_anchoring}\n\n"
         f"{VALUES_GUARDRAIL}\n\n"
         "OUTPUT: a single JSON object matching this shape (no prose, no markdown):\n"
         f"{schema_block}\n\n"
@@ -161,7 +228,9 @@ def build_messages(
         f"User's task: {req.task!r}\n\n"
         f"Requested card kinds (in order): {req.cards}\n\n"
         f"Raw materials fetched from the internet:\n{raw_blob}\n\n"
-        "Now produce the JSON."
+        "Before writing, briefly note to yourself (not in output): what domain is this "
+        "task in, what words did the user use, what energy do they have? "
+        "Then write the JSON with all of that baked in. Output only the JSON."
     )
 
     return [
@@ -181,6 +250,8 @@ async def motivate(
     persona = get_persona(req.persona)
 
     async def _do(c: httpx.AsyncClient) -> MotivationPackage:
+        validate_input(req.task)
+        await validate_task_values(settings, req.task)
         raw = await gather_raw_materials(c, req)
         messages = build_messages(req, persona, raw)
         data = await chat_completion(
@@ -194,6 +265,7 @@ async def motivate(
         content = (
             (data.get("choices") or [{}])[0].get("message", {}).get("content", "{}")
         )
+        await validate_output(settings, content)
         try:
             parsed = json.loads(content)
         except json.JSONDecodeError as exc:
